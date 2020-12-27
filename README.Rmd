@@ -260,12 +260,35 @@ We can see that three of the $\phi_i$ are zero (the disconnected areas):
 plot(fit, pars = "phi")
 ```
 
-And here's the (mean) prior degree of spatial autocorrelation in $\phi$:
+And we can view a sample of the variety of spatial autocorrelation patterns that are present in the prior model for $\phi$:
 ```{r}
-W <- shape2mat(states, "W")
+drop.idx <- which(states$NAME %in% c("Alaska", "Hawaii", "Puerto Rico"))
+cont <- states[-drop.idx, ]
+phi <- as.matrix(fit, pars = "phi")[, -drop.idx]
+
+ggplot(cont) +
+  geom_sf(aes(fill = phi[1,])) +
+  scale_fill_gradient2()
+
+ggplot(cont) +
+  geom_sf(aes(fill = phi[20,])) +
+  scale_fill_gradient2()
+
+ggplot(cont) +
+  geom_sf(aes(fill = phi[200,])) +
+  scale_fill_gradient2()
+
+ggplot(cont) +
+  geom_sf(aes(fill = phi[3000,])) +
+  scale_fill_gradient2()
+```
+
+And summarize the degree of spatial autocorrelation in each posterior draw of $\phi$ with the Moran coefficient:
+```{r message = FALSE, warning = FALSE}
 phi <- as.matrix(fit, pars = "phi")
-phi  <- apply(phi, 2, mean)
-moran_plot(phi, W)
+w <- shape2mat(states, "W")
+phi.sa  <- apply(phi, 1, mc, w = w)
+hist(phi.sa)
 ```
 
 

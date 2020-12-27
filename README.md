@@ -321,15 +321,53 @@ plot(fit, pars = "phi")
 
 <img src="README_files/figure-markdown_github/unnamed-chunk-10-1.png" style="display: block; margin: auto;" />
 
-And here’s the (mean) prior degree of spatial autocorrelation in *ϕ*:
+And we can view a sample of the variety of spatial autocorrelation
+patterns that are present in the prior model for *ϕ*:
 
 ``` r
-W <- shape2mat(states, "W")
-phi <- as.matrix(fit, pars = "phi")
-phi  <- apply(phi, 2, mean)
-moran_plot(phi, W)
+drop.idx <- which(states$NAME %in% c("Alaska", "Hawaii", "Puerto Rico"))
+cont <- states[-drop.idx, ]
+phi <- as.matrix(fit, pars = "phi")[, -drop.idx]
+
+ggplot(cont) +
+  geom_sf(aes(fill = phi[1,])) +
+  scale_fill_gradient2()
 ```
 
-    ## `geom_smooth()` using formula 'y ~ x'
-
 <img src="README_files/figure-markdown_github/unnamed-chunk-11-1.png" style="display: block; margin: auto;" />
+
+``` r
+ggplot(cont) +
+  geom_sf(aes(fill = phi[20,])) +
+  scale_fill_gradient2()
+```
+
+<img src="README_files/figure-markdown_github/unnamed-chunk-11-2.png" style="display: block; margin: auto;" />
+
+``` r
+ggplot(cont) +
+  geom_sf(aes(fill = phi[200,])) +
+  scale_fill_gradient2()
+```
+
+<img src="README_files/figure-markdown_github/unnamed-chunk-11-3.png" style="display: block; margin: auto;" />
+
+``` r
+ggplot(cont) +
+  geom_sf(aes(fill = phi[3000,])) +
+  scale_fill_gradient2()
+```
+
+<img src="README_files/figure-markdown_github/unnamed-chunk-11-4.png" style="display: block; margin: auto;" />
+
+And summarize the degree of spatial autocorrelation in each posterior
+draw of *ϕ* with the Moran coefficient:
+
+``` r
+phi <- as.matrix(fit, pars = "phi")
+w <- shape2mat(states, "W")
+phi.sa  <- apply(phi, 1, mc, w = w)
+hist(phi.sa)
+```
+
+<img src="README_files/figure-markdown_github/unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
