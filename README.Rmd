@@ -62,7 +62,7 @@ functions {
 }
 ```
 
-It can be broken into two parts: first the pairwise difference formula `-0.5 * dot_self(phi[node1] - phi[node2])` which places low (prior) probability on large differences between neighbors, and then the sum-to-zero contraint `sum(phi) ~ normal(0, 0.001*N)`.
+It can be broken into two parts: first the pairwise difference formula `-0.5 * dot_self(phi[node1] - phi[node2])` which places low (prior) probability on large differences between neighbors, and then the sum-to-zero constraint `sum(phi) ~ normal(0, 0.001*N)`.
  
 It needs to be applied independently to each group of connected observations and islands may need some kind of special treatment. If there were no partial-pooling across all observations (i.e. there were no $\theta$, just $\phi$) we could follow what others have done and set the prior distributions for the islands to $\phi_i \sim N(0, 1)$. But with the BYM2 that will end up duplicating $\theta_i$. Instead, we'll zero out $\phi_i$ for any islands.
 
@@ -78,7 +78,7 @@ Now we just need to add the sum-to-zero constraint, which again happens to take 
   int pos;
   pos = 1;
   for (j in 1:k) {
-    sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.0001 * group_size[j]);
+    sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.001 * group_size[j]);
     pos = pos + group_size[j];
   }
 ```
@@ -135,7 +135,7 @@ model {
   int pos;
     pos = 1;
     for (j in 1:k) {
-      sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.0001 * group_size[j]);
+      sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.001 * group_size[j]);
       pos = pos + group_size[j];
     }
    target += -0.5 * dot_self(phi[node1] - phi[node2]);
@@ -249,9 +249,9 @@ dl <- list(
 
 fit = sampling(model,
                data = dl,
-               chains = 3,
-               cores = 3,
-               control = list(max_treedepth = 15)
+               chains = 4,
+               cores = 4,
+               control = list(max_treedepth = 13)
                )
 ```
 

@@ -36,7 +36,7 @@ model {
   int pos;
     pos = 1;
     for (j in 1:k) {
-      sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.0001 * group_size[j]);
+      sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.001 * group_size[j]);
       pos = pos + group_size[j];
     }
    target += -0.5 * dot_self(phi[node1] - phi[node2]);

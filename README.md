@@ -39,7 +39,7 @@ functions {
 It can be broken into two parts: first the pairwise difference formula
 `-0.5 * dot_self(phi[node1] - phi[node2])` which places low (prior)
 probability on large differences between neighbors, and then the
-sum-to-zero contraint `sum(phi) ~ normal(0, 0.001*N)`.
+sum-to-zero constraint `sum(phi) ~ normal(0, 0.001*N)`.
 
 It needs to be applied independently to each group of connected
 observations and islands may need some kind of special treatment. If
@@ -69,7 +69,7 @@ we might add an extra zero to the scale, `0.0001`):
   int pos;
   pos = 1;
   for (j in 1:k) {
-    sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.0001 * group_size[j]);
+    sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.001 * group_size[j]);
     pos = pos + group_size[j];
   }
 ```
@@ -135,7 +135,7 @@ model {
   int pos;
     pos = 1;
     for (j in 1:k) {
-      sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.0001 * group_size[j]);
+      sum(phi[segment(group_idx, pos, group_size[j])]) ~ normal(0, 0.001 * group_size[j]);
       pos = pos + group_size[j];
     }
    target += -0.5 * dot_self(phi[node1] - phi[node2]);
@@ -302,15 +302,11 @@ dl <- list(
 
 fit = sampling(model,
                data = dl,
-               chains = 3,
-               cores = 3,
-               control = list(max_treedepth = 15)
+               chains = 4,
+               cores = 4,
+               control = list(max_treedepth = 13)
                )
 ```
-
-    ## Warning: Bulk Effective Samples Size (ESS) is too low, indicating posterior means and medians may be unreliable.
-    ## Running the chains for more iterations may help. See
-    ## http://mc-stan.org/misc/warnings.html#bulk-ess
 
 We can see that three of the *ϕ*<sub>*i*</sub> are zero (the
 disconnected areas):
@@ -328,9 +324,9 @@ plot(fit, pars = "phi")
 And here’s the (mean) prior degree of spatial autocorrelation in *ϕ*:
 
 ``` r
-phi <- as.matrix(fit, pars = "phi")
-phi <- apply(phi, 2, mean)
 W <- shape2mat(states, "W")
+phi <- as.matrix(fit, pars = "phi")
+phi  <- apply(phi, 2, mean)
 moran_plot(phi, W)
 ```
 
