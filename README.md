@@ -158,7 +158,8 @@ library(sf)
 library(spdep)
 library(INLA)
 library(ggplot2)
-model = stan_model("BYM2.stan")
+bym2.file <- "https://raw.githubusercontent.com/ConnorDonegan/Stan-IAR/main/BYM2.stan"
+model <- stan_model(bym2.file)
 # load geostan::edges, geostan::shape2mat , geostan::prep_icar_data
 source("https://raw.githubusercontent.com/ConnorDonegan/geostan/main/R/convenience-functions.R")
 # load get.shp function to download shapefiles
@@ -297,7 +298,7 @@ dl <- list(
     n = n,
     prior_only = TRUE,
     y = rep(1, n), # just a placeholder
-    offset = rep(1, n) # placeholder
+    offset = rep(1, n) # placeholder  
 )
 dl <- c(dl, iar.data)
 
