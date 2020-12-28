@@ -159,7 +159,7 @@ library(spdep)
 library(INLA)
 library(ggplot2)
 model = stan_model("BYM2.stan")
-# load geostan::edges, geostan::shape2mat 
+# load geostan::edges, geostan::shape2mat , geostan::prep_icar_data
 source("https://raw.githubusercontent.com/ConnorDonegan/geostan/main/R/convenience-functions.R")
 # load get.shp function to download shapefiles
 source("https://raw.githubusercontent.com/ConnorDonegan/helpful/master/get-shp.R")
@@ -187,7 +187,7 @@ ggplot(states) +
   theme_void()
 ```
 
-Much of the following operations could be combined together into a single loop but is shown here with results:
+Get group sizes and build the index for group membership:
 
 ```{r}
 ## create a list of neighbors based on contiguity (shared borders)
@@ -199,23 +199,28 @@ print(nb2)
 n <- nrow(states)
 k = nb2$nc
 group_idx = NULL
-for (j in 1:k) {
-    group_idx <- c(group_idx, which(nb2$comp.id == j))
-}
+for (j in 1:k) group_idx <- c(group_idx, which(nb2$comp.id == j))
+
 print(group_idx)
 
 ## group sizes (number of observations per group)
 sizes <- NULL
-for (j in 1:k) {
-    sizes <- c(sizes, sum(nb2$comp.id == j))
-}
+for (j in 1:k) sizes <- c(sizes, sum(nb2$comp.id == j))
 print(sizes)
 
 ## make edge list 
 C <- shape2mat(states, style = "B")
 E <- edges(C)
 print(head(E))
+```
 
+Or do the same using the `prep_icar_data` function:
+```{r}
+iar.data <- prep_icar_data(C)
+```
+
+That function returns a list with everything the `BYM2.stan` model needs for the IAR component, but it sets the scale factor to 1. That's okay but won't produce the BYM2 model. Add in the scale factor: 
+```{r}
 ## make scale_factors
 scale_factor <- vector(mode = "numeric", length = n)
 for (j in 1:k) {
@@ -228,24 +233,19 @@ for (j in 1:k) {
     scale.j <- c_scale(Cg)
     scale_factor[g.idx] <- scale.j
 }
+iar.data$scale_factor <- scale_factor
 print(scale_factor)
 ```
 
-And put it in a list and feed to Stan:
+And then append to the `iar.data` list any other required data:
 ```{r}
 dl <- list(
     n = n,
-    k = k,
-    group_size = array(sizes, dim = k),
-    n_edges = nrow(E),
-    node1 = E$node1,
-    node2 = E$node2,
-    group_idx = group_idx,
-    scale_factor = scale_factor,
     prior_only = TRUE,
     y = rep(1, n), # just a placeholder
-    offset = rep(1, n) # placeholder
+    offset = rep(1, n) # placeholder  
 )
+dl <- c(dl, iar.data)
 
 fit = sampling(model,
                data = dl,

@@ -159,7 +159,7 @@ library(spdep)
 library(INLA)
 library(ggplot2)
 model = stan_model("BYM2.stan")
-# load geostan::edges, geostan::shape2mat 
+# load geostan::edges, geostan::shape2mat , geostan::prep_icar_data
 source("https://raw.githubusercontent.com/ConnorDonegan/geostan/main/R/convenience-functions.R")
 # load get.shp function to download shapefiles
 source("https://raw.githubusercontent.com/ConnorDonegan/helpful/master/get-shp.R")
@@ -200,8 +200,7 @@ ggplot(states) +
 
 <img src="README_files/figure-markdown_github/unnamed-chunk-7-1.png" style="display: block; margin: auto;" />
 
-Much of the following operations could be combined together into a
-single loop but is shown here with results:
+Get group sizes and build the index for group membership:
 
 ``` r
 ## create a list of neighbors based on contiguity (shared borders)
@@ -222,9 +221,8 @@ print(nb2)
 n <- nrow(states)
 k = nb2$nc
 group_idx = NULL
-for (j in 1:k) {
-    group_idx <- c(group_idx, which(nb2$comp.id == j))
-}
+for (j in 1:k) group_idx <- c(group_idx, which(nb2$comp.id == j))
+
 print(group_idx)
 ```
 
@@ -235,9 +233,7 @@ print(group_idx)
 ``` r
 ## group sizes (number of observations per group)
 sizes <- NULL
-for (j in 1:k) {
-    sizes <- c(sizes, sum(nb2$comp.id == j))
-}
+for (j in 1:k) sizes <- c(sizes, sum(nb2$comp.id == j))
 print(sizes)
 ```
 
@@ -258,6 +254,16 @@ print(head(E))
     ## 5     3    27
     ## 6     3    29
 
+Or do the same using the `prep_icar_data` function:
+
+``` r
+iar.data <- prep_icar_data(C)
+```
+
+That function returns a list with everything the `BYM2.stan` model needs
+for the IAR component, but it sets the scale factor to 1. That’s okay
+but won’t produce the BYM2 model. Add in the scale factor:
+
 ``` r
 ## make scale_factors
 scale_factor <- vector(mode = "numeric", length = n)
@@ -271,6 +277,7 @@ for (j in 1:k) {
     scale.j <- c_scale(Cg)
     scale_factor[g.idx] <- scale.j
 }
+iar.data$scale_factor <- scale_factor
 print(scale_factor)
 ```
 
@@ -283,22 +290,16 @@ print(scale_factor)
     ## [43] 0.5250207 0.5250207 0.5250207 0.5250207 0.5250207 0.5250207 0.5250207
     ## [50] 0.5250207 1.0000000 0.5250207
 
-And put it in a list and feed to Stan:
+And then append to the `iar.data` list any other required data:
 
 ``` r
 dl <- list(
     n = n,
-    k = k,
-    group_size = array(sizes, dim = k),
-    n_edges = nrow(E),
-    node1 = E$node1,
-    node2 = E$node2,
-    group_idx = group_idx,
-    scale_factor = scale_factor,
     prior_only = TRUE,
     y = rep(1, n), # just a placeholder
     offset = rep(1, n) # placeholder
 )
+dl <- c(dl, iar.data)
 
 fit = sampling(model,
                data = dl,
@@ -319,7 +320,7 @@ plot(fit, pars = "phi")
 
     ## outer_level: 0.95 (95% intervals)
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-10-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
 
 And we can view a sample of the variety of spatial autocorrelation
 patterns that are present in the prior model for *ϕ*:
@@ -334,7 +335,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-11-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-13-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -342,7 +343,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-11-2.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-13-2.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -350,7 +351,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-11-3.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-13-3.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -358,7 +359,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-11-4.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-13-4.png" style="display: block; margin: auto;" />
 
 And summarize the degree of spatial autocorrelation in each posterior
 draw of *ϕ* with the Moran coefficient:
@@ -370,4 +371,4 @@ phi.sa  <- apply(phi, 1, mc, w = w)
 hist(phi.sa)
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-12-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-14-1.png" style="display: block; margin: auto;" />
