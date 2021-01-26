@@ -437,9 +437,10 @@ higher precision (lower variance) relative to those with fewer
 neighbors. However, the model is a *joint* probability over the
 parameter space, so the prior precision of any one parameter is impacted
 by the prior precision of its neighbors, and less so by second- and
-third-order neighbors, and so on. We can see that the variance of the
-prior probability for `phi` is related to the number of neighbors (D)
-but not only that:
+third-order neighbors, and so on.
+
+We can see that the variance of the prior probability for `phi` is
+related to the number of neighbors (D):
 
 ``` r
 # joint probability of phi, as specified here, is driven by phi'*(D-C)*phi with D a diagonal matrix containing number of neighbors of each observation
@@ -451,12 +452,31 @@ plot(D_diag, phi.var)
 
 <img src="README_files/figure-markdown_github/unnamed-chunk-16-1.png" style="display: block; margin: auto;" />
 
+And the marginal variances of the ICAR prior exhibit spatial
+autocorrelation, with a predictable pattern of higher variance on the
+coasts and lower variance inland:
+
+``` r
+## drop states with no neighbors
+drop.idx <- which(states$NAME %in% c("Alaska", "Hawaii", "Puerto Rico"))
+cont <- states[-drop.idx, ]
+phi_variance <- phi.var[-drop.idx]
+
+ggplot(cont) +
+  geom_sf(aes(fill=log(phi_variance))) +
+  scale_fill_gradient(
+    low = "white",
+    high = "darkred"
+  )
+```
+
+<img src="README_files/figure-markdown_github/unnamed-chunk-17-1.png" style="display: block; margin: auto;" />
+
 We can view a sample of the variety of spatial autocorrelation patterns
 that are present in the prior model for `phi`:
 
 ``` r
-drop.idx <- which(states$NAME %in% c("Alaska", "Hawaii", "Puerto Rico"))
-cont <- states[-drop.idx, ]
+## again, drop to the continental states only
 phi <- as.matrix(fit, pars = "phi")[, -drop.idx]
 
 ggplot(cont) +
@@ -464,7 +484,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-17-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-18-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -472,7 +492,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-18-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-19-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -480,7 +500,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-19-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
 
 The following plot is a histogram of the degree of spatial
 autocorrelation in each posterior draw of `phi` as measured by the Moran
@@ -492,7 +512,7 @@ phi.sa  <- apply(phi, 1, mc, w = C)
 hist(phi.sa)
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-21-1.png" style="display: block; margin: auto;" />
 
 Only positive spatial autocorrelation patterns can be modeled with the
 ICAR prior.

@@ -344,7 +344,9 @@ plot(fit, pars = "phi")
 
 Those tightly centered on zero are the states with zero neighbors. They have no spatial autocorrelation component by definition, so `phi` gets zeroed out and the convolution term for thos observations is equal to `theta`. (If we were fitting an ICAR model without `theta`, they would be given standard normal priors instead of being zeroed out.)
 
-We also can see that the variance of the prior distribution is uneven across states. The ICAR model is driven by the pairwise difference formula, which comes from $\phi' (D - W) \phi$ where D is a diagonal matrix and W is the connectivity matrix (with zeros on the diagonal). Elements on the diagonal of D are equal to the number of neighbors of each observation. Observations with large numbers of neighbors have higher precision (lower variance) relative to those with fewer neighbors. However, the model is a *joint* probability over the parameter space, so the prior precision of any one parameter is impacted by the prior precision of its neighbors, and less so by second- and third-order neighbors, and so on. We can see that the variance of the prior probability for `phi` is related to the number of neighbors (D) but not only that:
+We also can see that the variance of the prior distribution is uneven across states. The ICAR model is driven by the pairwise difference formula, which comes from $\phi' (D - W) \phi$ where D is a diagonal matrix and W is the connectivity matrix (with zeros on the diagonal). Elements on the diagonal of D are equal to the number of neighbors of each observation. Observations with large numbers of neighbors have higher precision (lower variance) relative to those with fewer neighbors. However, the model is a *joint* probability over the parameter space, so the prior precision of any one parameter is impacted by the prior precision of its neighbors, and less so by second- and third-order neighbors, and so on. 
+
+We can see that the variance of the prior probability for `phi` is related to the number of neighbors (D):
 
 ```{r}
 # joint probability of phi, as specified here, is driven by phi'*(D-C)*phi with D a diagonal matrix containing number of neighbors of each observation
@@ -354,11 +356,26 @@ phi.var <- apply(phi.samples, 2, var)
 plot(D_diag, phi.var)
 ```
 
+And the marginal variances of the ICAR prior exhibit spatial autocorrelation, with a predictable pattern of higher variance on the coasts and lower variance inland:
+
+```{r}
+## drop states with no neighbors
+drop.idx <- which(states$NAME %in% c("Alaska", "Hawaii", "Puerto Rico"))
+cont <- states[-drop.idx, ]
+phi_variance <- phi.var[-drop.idx]
+
+ggplot(cont) +
+  geom_sf(aes(fill=log(phi_variance))) +
+  scale_fill_gradient(
+    low = "white",
+    high = "darkred"
+  )
+```
+
 We can view a sample of the variety of spatial autocorrelation patterns that are present in the prior model for `phi`:
 
 ```{r}
-drop.idx <- which(states$NAME %in% c("Alaska", "Hawaii", "Puerto Rico"))
-cont <- states[-drop.idx, ]
+## again, drop to the continental states only
 phi <- as.matrix(fit, pars = "phi")[, -drop.idx]
 
 ggplot(cont) +
