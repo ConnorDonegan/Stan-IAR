@@ -81,7 +81,7 @@ vector convolve_bym(vector phi, vector theta,
  * @param k number of connected groups
  * @param group_size number of observational units in each group
  * @param group_idx index of observations in order of their group membership
- * @param logit_rho proportion of convolution that is spatially autocorrelated, logit transformed
+ * @param rho proportion of convolution that is spatially autocorrelated
  * @param scale_factor The scaling factor for the BYM2 model. See scale_c R function, using R-INLA.
  *
  * @return BYM2 convolution vector
