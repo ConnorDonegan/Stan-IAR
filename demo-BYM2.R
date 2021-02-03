@@ -12,7 +12,7 @@ states <- st_read("states")
 C <- spdep::nb2mat(spdep::poly2nb(states, queen = TRUE), style = "B", zero.policy = TRUE)
 icar.data <- prep_icar_data(C)
 
-## notice that the inverse of the scale_factor is just ones. 
+## notice that the scale_factor is just ones. 
 icar.data$scale_factor
 
 ## calculate the scale factor for each of k connected group of nodes, using scale_c function
