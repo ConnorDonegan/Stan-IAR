@@ -163,7 +163,7 @@ prep_icar_data <- function (C, scale_factor = NULL) {
 #' @param w connectivity matrix 
 #' 
 #' @author Connor Donegan
-mc <- function (x, w, digits = 3, warn = FALSE) {
+mc <- function (x, w, digits = 3, warn = TRUE) {
   if (missing(x) | missing(w)) 
     stop("Must provide data x (length n vector) and n x n spatial weights matrix (w).")
   if (any(rowSums(w) == 0)) {
