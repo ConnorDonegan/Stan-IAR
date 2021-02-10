@@ -29,8 +29,7 @@ Contents includes:
 -   `demo-BYM2.R` Example R code for fitting the BYM2 model.
 -   `BYM2-b.stan` Another way to program the ICAR/BYM2 model in Stan
     (thanks to Mizi Morris). This one is fully contained, with the ICAR
-    function inside the Stan model. (In the future, some of the files
-    here might be updated or extended to adopt this indexing method.)
+    function inside the Stan model. 
 
 The foundation for the Stan code was first presented in Morris’ Stan
 [case
