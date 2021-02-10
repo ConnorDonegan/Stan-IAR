@@ -28,8 +28,8 @@ Contents includes:
 -   `BYM2.stan` Example code for the BYM2 model;
 -   `demo-BYM2.R` Example R code for fitting the BYM2 model.
 -   `BYM2-b.stan` Another way to program the ICAR/BYM2 model in Stan
-    (thanks to Mizi Morris). This one is fully contained, with the ICAR
-    function inside the Stan model. 
+    (thanks to Mizi Morris). This one is fully contained, with the Stan ICAR
+    function and notes inside the Stan model, but currently without R code here.
 
 The foundation for the Stan code was first presented in Morris’ Stan
 [case
