@@ -82,7 +82,7 @@ transformed parameters {
   // each component has its own spatial smoothing
   for (k in 1:K) {
     if (K_size[k] == 1) {
-      gamma[K_members[k,1]] = theta_sp[K_members[k,1]];
+      gamma[K_members[k,1]] = theta_sp[K_members[k,1]] * sigma_sp;
     } else {
       gamma[K_members[k, 1:K_size[k]]] = 
 	    (sqrt(1 - rho_sp) * theta_sp[K_members[k, 1:K_size[k]]]
