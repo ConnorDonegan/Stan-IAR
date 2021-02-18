@@ -642,7 +642,7 @@ use the INLA R package and the following R code:
 ``` r
 icar.data <- prep_icar_data(C)
 
-## calculate the scale factor for each of k connected group of nodes, using scale_c function
+## calculate the scale factor for each of k connected group of nodes, using the scale_c function from M. Morris
 k <- icar.data$k
 scale_factor <- vector(mode = "numeric", length = k)
 for (j in 1:k) {
