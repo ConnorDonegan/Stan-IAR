@@ -28,7 +28,7 @@ knitr::opts_chunk$set(
 
 ### ICAR, BYM, and BYM2 models in Stan
 
-This repository contains R and Stan code to fit spatial or time series models using intrinsic conditional autoregressive (ICAR) priors, including the BYM model [@besag_1991] and Riebler et al.'s [-@riebler_2016] adjustmented ("BYM2") specification. The code here follows all of the recommendations from @freni_2018 for disconnected graph structures.
+This repository contains R and Stan code to fit spatial models using intrinsic conditional autoregressive (ICAR) priors, including the BYM model [@besag_1991] and Riebler et al.'s [-@riebler_2016] adjustmented ("BYM2") specification. The code here follows all of the recommendations from @freni_2018 for disconnected graph structures.
 
 While the Stan code for these models may appear complex (or perhaps convoluted), the implementation is actually very simple given the R and Stan functions provided here. The code will work if you have a single connected graph structure, and if there are islands and/or multiple connected components it will automatically make the appropriate adjustments. 
 
@@ -41,7 +41,7 @@ Contents includes:
 - `demo-BYM2.R` Example R code for fitting the BYM2 model.
 - `BYM2-b.stan` Alternative code for the ICAR/BYM2 model in Stan (courtesy of Mizi Morris--this is currently under revision, please use `BYM2.stan` for now). 
 
-The foundation for the efficient Stan code for ICAR models was first presented in Morris' Stan [case study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R) and Morris et al. (2020). I've adapted the model to handle a variety of common scenarios, particularly the presence of observations with zero neighbors or data from multiple regions that are disconnected from each other. These situations impact the calculation of the log probability as well as how the terms of the BYM model can be combined. I drew on previous work by [Adam Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/) (particularly, some of his approach to indexing), and the repository also includes some additional code from Mitiz Morris (where indicated). I am solely responsible for any errors or oversights here.
+The foundation for the efficient Stan code for ICAR models was first presented in Morris' Stan [case study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R) and Morris et al. (2020). I've adapted the model to handle a variety of common scenarios, particularly the presence of observations with zero neighbors or data from multiple regions that are disconnected from each other. These situations impact the calculation of the log probability as well as how the terms of the BYM model can be combined. I drew on previous work by [Adam Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/) (particularly, some of his approach to indexing), and the repository also includes some additional contributions from Mitiz Morris (where indicated). I am solely responsible for any errors or oversights here.
 
 For a general introduction to ICAR models (including spatio-temporal specifications) see @haining_2020. For an introduction to their implementation in Stan see Morris' [Stan case study](https://mc-stan.org/users/documentation/case-studies/icar_stan.html). For a deeper read see @rue_2005.
 
@@ -362,8 +362,8 @@ Download the shapefile from the Census Bureau and load it as an sf (simple featu
 
 ```{r}
 ## get a shapefil
-#url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
-#get_shp(url, "states")
+url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
+get_shp(url, "states")
 states <- st_read("states")
 ```
 
@@ -403,6 +403,7 @@ and pass our list of data to Stan to sample from the joint prior distribution of
 
 ```{r}
  fit = sampling(BYM,
+                refresh = 0,
                 data = dl,
                 control = list(max_treedepth = 13)
                 )

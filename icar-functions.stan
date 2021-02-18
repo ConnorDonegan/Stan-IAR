@@ -83,9 +83,9 @@ vector convolve_bym(vector phi, vector theta,
  * @param k number of connected groups
  * @param group_size number of observational units in each group
  * @param group_idx index of observations in order of their group membership
- * @param logit_rho proportion of convolution that is spatially autocorrelated, logit transformed
  * @param inv_sqrt_scale_factor The scaling factor for the ICAR variance (see scale_c R function, using R-INLA); 
  *                              transformed from 1/scale^2 --> scale. Or, a vector of ones.
+ * @param rho proportion of convolution that is spatially autocorrelated
  *
  * @return BYM2 convolution vector
  */

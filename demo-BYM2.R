@@ -12,8 +12,8 @@ states <- st_read("states")
 C <- spdep::nb2mat(spdep::poly2nb(states, queen = TRUE), style = "B", zero.policy = TRUE)
 icar.data <- prep_icar_data(C)
 
-## notice that the inverse of the scale_factor is just ones. 
-icar.data$scale_factor
+## notice that the scale_factor is just ones. 
+icar.data$inv_sqrt_scale_factor
 
 ## calculate the scale factor for each of k connected group of nodes, using scale_c function
 k <- icar.data$k
@@ -47,7 +47,7 @@ dl <- c(dl, icar.data)
 BYM2 <- stan_model("BYM2.stan")
 
 ## sample
-fit <- sampling(BYM2, data = dl, chains = 2, cores = 4)
+fit <- sampling(BYM2, data = dl, chains = 4, cores = 4)
 
 ## view some results from the joint prior probability
 plot(fit, pars = "phi_tilde")

@@ -14,12 +14,12 @@
 
 ### ICAR, BYM, and BYM2 models in Stan
 
-This repository contains R and Stan code to fit spatial or time series
-models using intrinsic conditional autoregressive (ICAR) priors,
-including the BYM model (Besag, York, and Mollié 1991) and Riebler et
-al.’s (2016) adjustmented (“BYM2”) specification. The code here follows
-all of the recommendations from Freni-Sterrantino, Ventrucci, and Rue
-(2018) for disconnected graph structures.
+This repository contains R and Stan code to fit spatial models using
+intrinsic conditional autoregressive (ICAR) priors, including the BYM
+model (Besag, York, and Mollié 1991) and Riebler et al.’s (2016)
+adjustmented (“BYM2”) specification. The code here follows all of the
+recommendations from Freni-Sterrantino, Ventrucci, and Rue (2018) for
+disconnected graph structures.
 
 While the Stan code for these models may appear complex (or perhaps
 convoluted), the implementation is actually very simple given the R and
@@ -54,8 +54,8 @@ well as how the terms of the BYM model can be combined. I drew on
 previous work by [Adam
 Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/)
 (particularly, some of his approach to indexing), and the repository
-also includes some additional code from Mitiz Morris (where indicated).
-I am solely responsible for any errors or oversights here.
+also includes some additional contributions from Mitiz Morris (where
+indicated). I am solely responsible for any errors or oversights here.
 
 For a general introduction to ICAR models (including spatio-temporal
 specifications) see Haining and Li (2020). For an introduction to their
@@ -459,8 +459,19 @@ Download the shapefile from the Census Bureau and load it as an sf
 
 ``` r
 ## get a shapefil
-#url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
-#get_shp(url, "states")
+url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
+get_shp(url, "states")
+```
+
+    ## [1] "states/cb_2019_us_state_20m.cpg"           
+    ## [2] "states/cb_2019_us_state_20m.dbf"           
+    ## [3] "states/cb_2019_us_state_20m.prj"           
+    ## [4] "states/cb_2019_us_state_20m.shp"           
+    ## [5] "states/cb_2019_us_state_20m.shp.ea.iso.xml"
+    ## [6] "states/cb_2019_us_state_20m.shp.iso.xml"   
+    ## [7] "states/cb_2019_us_state_20m.shx"
+
+``` r
 states <- st_read("states")
 ```
 
@@ -514,111 +525,11 @@ distribution of the parameters:
 
 ``` r
  fit = sampling(BYM,
+                refresh = 0,
                 data = dl,
                 control = list(max_treedepth = 13)
                 )
 ```
-
-    ## 
-    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 1).
-    ## Chain 1: 
-    ## Chain 1: Gradient evaluation took 2.5e-05 seconds
-    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.25 seconds.
-    ## Chain 1: Adjust your expectations accordingly!
-    ## Chain 1: 
-    ## Chain 1: 
-    ## Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
-    ## Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
-    ## Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
-    ## Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
-    ## Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
-    ## Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-    ## Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-    ## Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-    ## Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-    ## Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-    ## Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-    ## Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
-    ## Chain 1: 
-    ## Chain 1:  Elapsed Time: 9.21218 seconds (Warm-up)
-    ## Chain 1:                6.58285 seconds (Sampling)
-    ## Chain 1:                15.795 seconds (Total)
-    ## Chain 1: 
-    ## 
-    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 2).
-    ## Chain 2: 
-    ## Chain 2: Gradient evaluation took 2e-05 seconds
-    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.2 seconds.
-    ## Chain 2: Adjust your expectations accordingly!
-    ## Chain 2: 
-    ## Chain 2: 
-    ## Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
-    ## Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
-    ## Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
-    ## Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
-    ## Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
-    ## Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-    ## Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-    ## Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-    ## Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-    ## Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-    ## Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-    ## Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
-    ## Chain 2: 
-    ## Chain 2:  Elapsed Time: 9.43214 seconds (Warm-up)
-    ## Chain 2:                7.46596 seconds (Sampling)
-    ## Chain 2:                16.8981 seconds (Total)
-    ## Chain 2: 
-    ## 
-    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 3).
-    ## Chain 3: 
-    ## Chain 3: Gradient evaluation took 2.3e-05 seconds
-    ## Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.23 seconds.
-    ## Chain 3: Adjust your expectations accordingly!
-    ## Chain 3: 
-    ## Chain 3: 
-    ## Chain 3: Iteration:    1 / 2000 [  0%]  (Warmup)
-    ## Chain 3: Iteration:  200 / 2000 [ 10%]  (Warmup)
-    ## Chain 3: Iteration:  400 / 2000 [ 20%]  (Warmup)
-    ## Chain 3: Iteration:  600 / 2000 [ 30%]  (Warmup)
-    ## Chain 3: Iteration:  800 / 2000 [ 40%]  (Warmup)
-    ## Chain 3: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-    ## Chain 3: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-    ## Chain 3: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-    ## Chain 3: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-    ## Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-    ## Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-    ## Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
-    ## Chain 3: 
-    ## Chain 3:  Elapsed Time: 11.403 seconds (Warm-up)
-    ## Chain 3:                7.41903 seconds (Sampling)
-    ## Chain 3:                18.822 seconds (Total)
-    ## Chain 3: 
-    ## 
-    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 4).
-    ## Chain 4: 
-    ## Chain 4: Gradient evaluation took 3.7e-05 seconds
-    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.37 seconds.
-    ## Chain 4: Adjust your expectations accordingly!
-    ## Chain 4: 
-    ## Chain 4: 
-    ## Chain 4: Iteration:    1 / 2000 [  0%]  (Warmup)
-    ## Chain 4: Iteration:  200 / 2000 [ 10%]  (Warmup)
-    ## Chain 4: Iteration:  400 / 2000 [ 20%]  (Warmup)
-    ## Chain 4: Iteration:  600 / 2000 [ 30%]  (Warmup)
-    ## Chain 4: Iteration:  800 / 2000 [ 40%]  (Warmup)
-    ## Chain 4: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-    ## Chain 4: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-    ## Chain 4: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-    ## Chain 4: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-    ## Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-    ## Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-    ## Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
-    ## Chain 4: 
-    ## Chain 4:  Elapsed Time: 10.8583 seconds (Warm-up)
-    ## Chain 4:                7.63972 seconds (Sampling)
-    ## Chain 4:                18.4981 seconds (Total)
-    ## Chain 4:
 
 We can see that three of the `phi_i` are zero:
 

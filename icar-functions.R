@@ -1,4 +1,3 @@
-
 #' Download and unzip a shapefile into your working directory
 #' 
 #' @param url URL to a shapefile. If you're downloading a shapefil manually, right click the "Download" button and copy the URL to your clipboard.
@@ -89,7 +88,6 @@ edges <- function (w) {
 }
 
 
-
 #' compute scaling factor for adjacency matrix
 #' accounts for differences in spatial connectivity 
 #' 
@@ -132,8 +130,8 @@ scale_c <- function(C) {
 #' @param scale_factor optional vector of scale factors for each connected portion of the graph structure. 
 #'   Generally, you will ignore this and update the scale factor manually.
 #'   
-#' @return a list with all that is needed for the Stan ICAR prior. If you do not provide scale_factor, 
-#'   it will be set to a vector of 1s. If you want the BYM2 model, create the scale_factor yourself.
+#' @return a list with all that is needed for the Stan ICAR prior. If you do not provide inv_sqrt_scale_factor, 
+#'   it will be set to a vector of 1s.
 #'   
 #' @author Connor Donegan
 #' 
@@ -180,7 +178,7 @@ prep_icar_data <- function (C, inv_sqrt_scale_factor = NULL) {
 #' @param w connectivity matrix 
 #' 
 #' @author Connor Donegan
-mc <- function (x, w, digits = 3, warn = FALSE) {
+mc <- function (x, w, digits = 3, warn = TRUE) {
   if (missing(x) | missing(w)) 
     stop("Must provide data x (length n vector) and n x n spatial weights matrix (w).")
   if (any(rowSums(w) == 0)) {
