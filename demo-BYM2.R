@@ -25,14 +25,14 @@ for (j in 1:k) {
     next
   }    
   Cg <- C[g.idx, g.idx] 
-  scale_factor[j] <- scale_c(Cg)
+  scale_factor[j] <- scale_c(Cg) 
 }
 
 ## update the data list for Stan
-icar.data$scale_factor <- scale_factor
+icar.data$inv_sqrt_scale_factor <- 1 / sqrt( scale_factor )
 
 ## see the new values
-print(icar.data$scale_factor)
+print(icar.data$inv_sqrt_scale_factor)
 
 ## and add in some (fake) outcome data with offset on log scale
 n <- nrow(C)
@@ -47,7 +47,7 @@ dl <- c(dl, icar.data)
 BYM2 <- stan_model("BYM2.stan")
 
 ## sample
-fit <- sampling(BYM2, data = dl, chains = 1, cores = 4)
+fit <- sampling(BYM2, data = dl, chains = 2, cores = 4)
 
 ## view some results from the joint prior probability
 plot(fit, pars = "phi_tilde")

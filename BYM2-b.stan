@@ -1,3 +1,6 @@
+//
+// this model is currently under revision to fix an error---please use BYM2.stan //
+//
 functions {
   /**
    * Return the log probability density of the specified vector of

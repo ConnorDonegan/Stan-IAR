@@ -2,7 +2,8 @@
  * Log probability of the intrinsic conditional autoregressive (ICAR) prior,
  * excluding additive constants. 
  *
- * @param phi Vector of parameters for spatial smoothing (on unit scale, approximately)
+ * @param phi Vector of parameters for spatial smoothing (on unit scale)
+ * @param spatial_scale Scale parameter for the ICAR model
  * @param node1 
  * @param node2
  * @param k number of groups
@@ -12,7 +13,7 @@
  *
  * @return Log probability density of ICAR prior up to additive constant
  **/
-real icar_normal_lpdf(vector phi, 
+real icar_normal_lpdf(vector phi, real spatial_scale,
               int[] node1, int[] node2, 
               int k, int[] group_size, int[] group_idx,
               int has_theta) {
@@ -26,14 +27,14 @@ real icar_normal_lpdf(vector phi,
       pos += group_size[j];
     }
   } else {
-    /* has no theta */
+    /* does not have theta */
     for (j in 1:k) {
       if (group_size[j] > 1) {
     /* same as above for non-singletons: sum to zero constraint */
     lp += normal_lpdf(sum(phi[segment(group_idx, pos, group_size[j])]) | 0, 0.001 * group_size[j]);
       } else {
-    /* its a singleton: independent std normal prior */
-    lp += std_normal_lpdf(phi[segment(group_idx, pos, group_size[j])]);
+    /* its a singleton: independent Gaussian prior on phi */
+    lp += normal_lpdf(phi[ segment(group_idx, pos, group_size[j]) ] | 0, spatial_scale);
       }      
       pos += group_size[j];
     }
@@ -44,8 +45,8 @@ real icar_normal_lpdf(vector phi,
 /**
  * Combine local and global partial-pooling components into the convolved BYM term.
  *
- * @param phi local (spatially autocorrelated) component
- * @param theta global component
+ * @param phi local (spatially autocorrelated) component (not phi_tilde!)
+ * @param theta global component (not theta_tilde!)
  * @param n number of spatial units
  * @param k number of connected groups
  * @param group_size number of observational units in each group
@@ -64,12 +65,13 @@ vector convolve_bym(vector phi, vector theta,
         convolution[ segment(group_idx, pos, group_size[j]) ] = theta[ segment(group_idx, pos, group_size[j]) ];
     } else {
     convolution[ segment(group_idx, pos, group_size[j]) ] =
-     phi[ segment(group_idx, pos, group_size[j]) ] + theta[ segment(group_idx, pos, group_size[j]) ];
+        phi[ segment(group_idx, pos, group_size[j]) ] + theta[ segment(group_idx, pos, group_size[j]) ];
   }
       pos += group_size[j];
   }
   return convolution;
 }
+
 
 /**
  * Combine local and global partial-pooling components into the convolved BYM2 term.
@@ -82,7 +84,8 @@ vector convolve_bym(vector phi, vector theta,
  * @param group_size number of observational units in each group
  * @param group_idx index of observations in order of their group membership
  * @param logit_rho proportion of convolution that is spatially autocorrelated, logit transformed
- * @param scale_factor The scaling factor for the BYM2 model. See scale_c R function, using R-INLA.
+ * @param inv_sqrt_scale_factor The scaling factor for the ICAR variance (see scale_c R function, using R-INLA); 
+ *                              transformed from 1/scale^2 --> scale. Or, a vector of ones.
  *
  * @return BYM2 convolution vector
  */
@@ -90,7 +93,7 @@ vector convolve_bym2(vector phi_tilde, vector theta_tilde,
           real spatial_scale,
 		      int n, int k,
 		      int[] group_size, int[] group_idx,
-		      real rho, vector scale_factor
+		      real rho, vector inv_sqrt_scale_factor
 		      ) {
   vector[n] convolution;
   int pos=1;
@@ -99,7 +102,7 @@ vector convolve_bym2(vector phi_tilde, vector theta_tilde,
         convolution[ segment(group_idx, pos, group_size[j]) ] = spatial_scale * theta_tilde[ segment(group_idx, pos, group_size[j]) ];
     } else {
     convolution[ segment(group_idx, pos, group_size[j]) ] = spatial_scale * (
-     sqrt(rho / scale_factor[j]) * phi_tilde[ segment(group_idx, pos, group_size[j]) ] +
+     sqrt(rho) * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ] +
      sqrt(1 - rho) * theta_tilde[ segment(group_idx, pos, group_size[j]) ]
       );
   }
@@ -109,3 +112,61 @@ vector convolve_bym2(vector phi_tilde, vector theta_tilde,
 }
 
 
+/**
+ * Create phi from phi_tilde, inv_sqrt_scale_factor, and spatial_scale. 
+ *
+ * @param phi_tilde local component (spatially autocorrelated) 
+ * @param phi_scale scale parameter for ICAR Normal model
+ * @param inv_sqrt_scale_factor The scaling factor for the ICAR variance (see scale_c R function, using R-INLA); 
+ *                              transformed from 1/scale^2 --> scale. Or, a vector of ones.
+ * @param n number of spatial units
+ * @param k number of connected groups
+ * @param group_size number of observational units in each group
+ * @param group_idx index of observations in order of their group membership
+ *
+ * @return phi vector of spatially autocorrelated coefficients
+ */
+vector make_phi(vector phi_tilde, real phi_scale,
+		      vector inv_sqrt_scale_factor,
+		      int n, int k,
+		      int[] group_size, int[] group_idx
+		      ) {
+  vector[n] phi;
+  int pos=1;
+  for (j in 1:k) {
+      phi[ segment(group_idx, pos, group_size[j]) ] = phi_scale * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ];
+    pos += group_size[j];
+  }
+  return phi;
+}
+
+ 
+
+/**
+ * Create phi from phi_tilde, inv_sqrt_scale_factor, and spatial_scale: 
+ *  with separate scale parameters per component.
+ *
+ * @param phi_tilde local component (spatially autocorrelated) 
+ * @param phi_scale scale parameters for ICAR Normal model, per connected component
+ * @param inv_sqrt_scale_factor The scaling factor for the ICAR variance (see scale_c R function, using R-INLA); 
+ *                              transformed from 1/scale^2 --> scale. Or, a vector of ones.
+ * @param n number of spatial units
+ * @param k number of connected groups
+ * @param group_size number of observational units in each group
+ * @param group_idx index of observations in order of their group membership
+ *
+ * @return phi vector of spatially autocorrelated coefficients
+ */
+vector make_phi2(vector phi_tilde, vector phi_scale,
+		      vector inv_sqrt_scale_factor,
+		      int n, int k,
+		      int[] group_size, int[] group_idx
+		      ) {
+  vector[n] phi;
+  int pos=1;
+  for (j in 1:k) {
+      phi[ segment(group_idx, pos, group_size[j]) ] = phi_scale[j] * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ];
+    pos += group_size[j];
+  }
+  return phi;
+}

@@ -1,3 +1,8 @@
 *~
 *.rds
 /states
+test-intercepts.R
+time-series.R
+test-intercepts.R
+SL-breast-cancer-50-74-1999-2017.txt
+IAR.stan

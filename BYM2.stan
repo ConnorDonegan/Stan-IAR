@@ -11,7 +11,7 @@ data {
   int<lower=1, upper=n> node1[n_edges];
   int<lower=1, upper=n> node2[n_edges];
   int<lower=1, upper=k> comp_id[n]; 
-  vector[k] scale_factor; // BYM2 scale factor, with singletons represented by 1
+  vector[k] inv_sqrt_scale_factor; // ICAR scale factor, with singletons represented by 1
   int<lower=0, upper=1> prior_only;
   int y[n];
   vector[n] offset;
@@ -31,11 +31,11 @@ parameters {
 
 transformed parameters {
   vector[n] convolution;
-  convolution = convolve_bym2(phi_tilde, theta_tilde, spatial_scale, n, k, group_size, group_idx, rho, scale_factor);
+  convolution = convolve_bym2(phi_tilde, theta_tilde, spatial_scale, n, k, group_size, group_idx, rho, inv_sqrt_scale_factor);
 }
 
 model {
-   phi_tilde ~ icar_normal(node1, node2, k, group_size, group_idx, has_theta);
+   phi_tilde ~ icar_normal(spatial_scale, node1, node2, k, group_size, group_idx, has_theta);
    theta_tilde ~ std_normal();
    spatial_scale ~ std_normal();
    rho ~ beta(1,1);

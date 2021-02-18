@@ -137,25 +137,42 @@ scale_c <- function(C) {
 #'   
 #' @author Connor Donegan
 #' 
-prep_icar_data <- function (C, scale_factor = NULL) {
+prep_icar_data <- function (C, inv_sqrt_scale_factor = NULL) {
   n <- nrow(C)
   E <- edges(C)
   G <- list(np = nrow(C), from = E$node1, to = E$node2, nedges = nrow(E))
   class(G) <- "Graph"
   nb2 <- spdep::n.comp.nb(spdep::graph2nb(G))
   k = nb2$nc
-  if (inherits(scale_factor, "NULL")) scale_factor <- array(rep(1, k), dim = k)
+  if (inherits(inv_sqrt_scale_factor, "NULL")) inv_sqrt_scale_factor <- array(rep(1, k), dim = k)
   group_idx = NULL
   for (j in 1:k) group_idx <- c(group_idx, which(nb2$comp.id == j))
   group_size <- NULL
   for (j in 1:k) group_size <- c(group_size, sum(nb2$comp.id == j))
-  l <- list(k = k, group_size = array(group_size, dim = k), 
-            n_edges = nrow(E), node1 = E$node1, node2 = E$node2, 
+  # intercept per connected component of size > 1, if multiple.
+  m <- sum(group_size > 1) - 1
+  if (m) {
+    GS <- group_size
+    ID <- nb2$comp.id
+    change.to.one <- which(GS == 1)
+    ID[which(ID == change.to.one)] <- 1
+    A = model.matrix(~ factor(ID))
+    A <- as.matrix(A[,-1])
+  } else {
+    A <- model.matrix(~ 0, data.frame(C))
+  }
+  l <- list(k = k, 
+            group_size = array(group_size, dim = k), 
+            n_edges = nrow(E), 
+            node1 = E$node1, 
+            node2 = E$node2, 
             group_idx = array(group_idx, dim = n), 
-            scale_factor = scale_factor, comp_id = nb2$comp.id)
+            m = m,
+            A = A,
+            inv_sqrt_scale_factor = inv_sqrt_scale_factor, 
+            comp_id = nb2$comp.id)
   return(l)
 }
-
 
 #' Moran Coefficient
 #' 

@@ -4,17 +4,29 @@
     Stan](#icar-bym-and-bym2-models-in-stan)
 -   [The ICAR prior](#the-icar-prior)
 -   [BYM convolution term](#bym-convolution-term)
+-   [BYM2 convolution term](#bym2-convolution-term)
 -   [Putting it all together](#putting-it-all-together)
 -   [Demonstration](#demonstration)
+-   [Scaling the ICAR prior](#scaling-the-icar-prior)
 -   [References](#references)
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ### ICAR, BYM, and BYM2 models in Stan
 
-This repository contains R and Stan code to fit spatial models using
-intrinsic conditional autoregressive priors, including the BYM model
-(Besag et al. 1991) and the Reibler et al.’s (2016) BYM2 specification.
+This repository contains R and Stan code to fit spatial or time series
+models using intrinsic conditional autoregressive (ICAR) priors,
+including the BYM model (Besag, York, and Mollié 1991) and Riebler et
+al.’s (2016) adjustmented (“BYM2”) specification. The code here follows
+all of the recommendations from Freni-Sterrantino, Ventrucci, and Rue
+(2018) for disconnected graph structures.
+
+While the Stan code for these models may appear complex (or perhaps
+convoluted), the implementation is actually very simple given the R and
+Stan functions provided here. The code will work if you have a single
+connected graph structure, and if there are islands and/or multiple
+connected components it will automatically make the appropriate
+adjustments.
 
 Contents includes:
 
@@ -27,24 +39,29 @@ Contents includes:
     provided in this README.md file;
 -   `BYM2.stan` Example code for the BYM2 model;
 -   `demo-BYM2.R` Example R code for fitting the BYM2 model.
--   `BYM2-b.stan` Another way to program the ICAR/BYM2 model in Stan
-    (thanks to Mizi Morris). This one is fully contained, with the ICAR
-    function inside the Stan model. (In the near future, all the files
-    here might be updated to adopt this indexing method.)
+-   `BYM2-b.stan` Alternative code for the ICAR/BYM2 model in Stan
+    (courtesy of Mizi Morris–this is currently under revision, please
+    use `BYM2.stan` for now).
 
-The foundation for the Stan code was first presented in Morris’ Stan
-[case
+The foundation for the efficient Stan code for ICAR models was first
+presented in Morris’ Stan [case
 study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R)
-and Morris et al. (2020). The code here is updated to allow for
-disconnected graph structures including zero-neighbor observations. It
-includes some additional code and ideas from Mitiz Morris and some from
-myself. This project also benefited from some work by [Adam
+and Morris et al. (2020). I’ve adapted the model to handle a variety of
+common scenarios, particularly the presence of observations with zero
+neighbors or data from multiple regions that are disconnected from each
+other. These situations impact the calculation of the log probability as
+well as how the terms of the BYM model can be combined. I drew on
+previous work by [Adam
 Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/)
-(particularly his approach to indexing). I am solely responsible for any
-errors or oversights.
+(particularly, some of his approach to indexing), and the repository
+also includes some additional code from Mitiz Morris (where indicated).
+I am solely responsible for any errors or oversights here.
 
-For an introduction to these models see Morris’ [Stan case
+For a general introduction to ICAR models (including spatio-temporal
+specifications) see Haining and Li (2020). For an introduction to their
+implementation in Stan see Morris’ [Stan case
 study](https://mc-stan.org/users/documentation/case-studies/icar_stan.html).
+For a deeper read see Rue and Held (2005).
 
 ### The ICAR prior
 
@@ -78,30 +95,32 @@ neighboring observations, zero otherwise).
 
 The second restriction is that the graph structure needs to be fully
 connected. For graph structures that are not fully connected, the sum to
-zero constraint needs to be applied to each connected region separately.
-There are multiple ways to complete the indexing task, none of which are
-presented in detail here. Two options are provided in this repository—on
-is presented below, the other is found in the file `BYM2-b.stan`.
+zero constraint needs to be applied to each connected region separately;
+as a result, it is best for each connected component to have its own
+intercept.
 
 Finally, the ICAR prior is typically used in conjunction with a
 spatially unstructured term `theta` to capture variation around the
 local mean (the local mean being modeled by `phi`.) The BYM model
 consists of the combination of local and global partial-pooling
 (so-called random effects terms). This is refered to as the convolution
-term, `convolution = phi + theta`. The following Stan function
-calculates the log probability of a parameter vector using the ICAR
-prior and adjusting as needed for the BYM model. In short, observations
-with zero neighbors will be handled differently depending on the
-inclusion of `theta`; if the model has `theta`, then those `phi` values
-will drop out. If the model does not have `theta`, this code assigns to
-the zero-neighbor observations an independent standard normal prior.
+term, `convolution = phi + theta`.
+
+The following Stan function calculates the log probability of the ICAR
+prior, adjusting as needed for use with the BYM model. In short,
+observations with zero neighbors will be handled differently depending
+on the inclusion of `theta`; if the model has `theta`, then those `phi`
+values need to drop out. If the model does not have `theta`, this code
+assigns to the zero-neighbor observations an independent Gaussian prior
+with scale equal to `phi_scale`.
 
 ``` stan
 /**
  * Log probability of the intrinsic conditional autoregressive (ICAR) prior,
  * excluding additive constants. 
  *
- * @param phi Vector of parameters for spatial smoothing (on unit scale, approximately)
+ * @param phi Vector of parameters for spatial smoothing (on unit scale)
+ * @param spatial_scale Scale parameter for the ICAR model
  * @param node1 
  * @param node2
  * @param k number of groups
@@ -111,7 +130,7 @@ the zero-neighbor observations an independent standard normal prior.
  *
  * @return Log probability density of ICAR prior up to additive constant
  **/
-real icar_normal_lpdf(vector phi, 
+real icar_normal_lpdf(vector phi, real spatial_scale,
               int[] node1, int[] node2, 
               int k, int[] group_size, int[] group_idx,
               int has_theta) {
@@ -120,25 +139,76 @@ real icar_normal_lpdf(vector phi,
   lp = -0.5 * dot_self(phi[node1] - phi[node2]);
   if (has_theta) {
     for (j in 1:k) {
-      /* sum to zero constraint, for each connected group; singletons zero out */
+      /* sum to zero constraint for each connected group; singletons zero out */
       lp += normal_lpdf(sum(phi[segment(group_idx, pos, group_size[j])]) | 0, 0.001 * group_size[j]);
       pos += group_size[j];
     }
   } else {
-    /* has no theta */
+    /* does not have theta */
     for (j in 1:k) {
       if (group_size[j] > 1) {
     /* same as above for non-singletons: sum to zero constraint */
     lp += normal_lpdf(sum(phi[segment(group_idx, pos, group_size[j])]) | 0, 0.001 * group_size[j]);
       } else {
-    /* its a singleton: independent */
-    lp += std_normal_lpdf(phi[segment(group_idx, pos, group_size[j])]);
+    /* its a singleton: independent Gaussian prior on phi */
+    lp += normal_lpdf(phi[ segment(group_idx, pos, group_size[j]) ] | 0, spatial_scale);
       }      
       pos += group_size[j];
     }
   }
   return lp;
 }
+```
+
+Riebler et al. (2016) proposed an adjustment to the ICAR model to enable
+more meaningful priors to be placed on `phi_scale`. The idea is to
+adjust the scale of `phi` for the additional variance present in the
+covariance matrix of the ICAR model, relative to a covariance matrix
+with zeroes on the off-diagonal elements. This is introduced through a
+`scale_factor` term, which we will code as
+`inv_sqrt_scale_factor = sqrt(1/scale_factor)` (to relate this directly
+to other implementations you may find).
+
+The following function is used to combine `phi_tilde` with `phi_scale`
+as well as the `scale_factor` (which may be a vector ones, to be
+ignored).
+
+``` stan
+/**
+ * Create phi from phi_tilde, inv_sqrt_scale_factor, and spatial_scale. 
+ *
+ * @param phi_tilde local component (spatially autocorrelated) 
+ * @param phi_scale scale parameter for phi
+ * @param inv_sqrt_scale_factor The scaling factor for the ICAR variance (see scale_c R function, using R-INLA); 
+ *                              transformed from 1/scale^2 --> scale. Or, a vector of ones.
+ * @param n number of spatial units
+ * @param k number of connected groups
+ * @param group_size number of observational units in each group
+ * @param group_idx index of observations in order of their group membership
+ *
+ * @return phi vector of spatially autocorrelated coefficients
+ */
+vector make_phi(vector phi_tilde, real phi_scale,
+              vector inv_sqrt_scale_factor,
+              int n, int k,
+              int[] group_size, int[] group_idx
+              ) {
+  vector[n] phi;
+  int pos=1;
+  for (j in 1:k) {
+      phi[ segment(group_idx, pos, group_size[j]) ] = phi_scale * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ];
+    pos += group_size[j];
+  }
+  return phi;
+}
+```
+
+One way this model might be extended is by including a separate scale
+parameters for each connected component of the graph. This would require
+declaring `vector phi_scale` (a k-length vector) and then writing
+
+``` r
+phi[ segment(group_idx, pos, group_size[j]) ] = phi_scale[j] * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ];`.
 ```
 
 ### BYM convolution term
@@ -149,18 +219,28 @@ a vector `theta` assigned a normal prior with unknown scale:
 Again, in practice we assign `theta_tilde` a standard normal prior and
 then multiply it by its scale `theta_scale`. Then the convolution term
 is
-`convolution = phi + theta = phi_tilde * spatial_scale + theta_tilde * theta_scale`.
 
-The following function combines terms to create the BYM convolution,
-making adjustments as needed for disconnected graph structures and
-observations with zero neighbors.
+``` r
+convolution = phi + theta = phi_tilde * spatial_scale + theta_tilde * theta_scale
+```
+
+or optionally with the scaling factor:
+
+``` r
+convolution = phi_tilde * inv_sqrt_scale_factor * spatial_scale + theta_tilde * theta_scale
+```
+
+The following function combines terms to create the BYM convolution
+term, making adjustments as needed for disconnected graph structures and
+observations with zero neighbors. The input for `phi` should be the
+parameter vector returned by `make_phi` (as demonstrated below).
 
 ``` stan
 /**
  * Combine local and global partial-pooling components into the convolved BYM term.
  *
- * @param phi local (spatially autocorrelated) component
- * @param theta global component
+ * @param phi spatially autocorrelated component (not phi_tilde!)
+ * @param theta global component (not theta_tilde!)
  * @param n number of spatial units
  * @param k number of connected groups
  * @param group_size number of observational units in each group
@@ -179,7 +259,7 @@ vector convolve_bym(vector phi, vector theta,
         convolution[ segment(group_idx, pos, group_size[j]) ] = theta[ segment(group_idx, pos, group_size[j]) ];
     } else {
     convolution[ segment(group_idx, pos, group_size[j]) ] =
-     phi[ segment(group_idx, pos, group_size[j]) ] + theta[ segment(group_idx, pos, group_size[j]) ];
+      phi[ segment(group_idx, pos, group_size[j]) ] + theta[ segment(group_idx, pos, group_size[j]) ];
   }
       pos += group_size[j];
   }
@@ -187,15 +267,19 @@ vector convolve_bym(vector phi, vector theta,
 }
 ```
 
-Riebler et al. (2016) proposed an adjustment to the BYM model. The idea
-is to adjust `phi_tilde` so that its ICAR prior is equivalent to unit
-scale, given the graph structure. This is introduced through a
-`scale_factor` term. They also combined `theta` with `phi` using a
-mixing parameter `rho` and a single scale `spatial_scale`, such that
-`convolution = spatial_scale * (sqrt(rho/scale_factor) * phi + sqrt(1 - rho) * theta)`.
+### BYM2 convolution term
+
+Riebler et al. (2016) also proposed to combine `theta` with `phi` using
+a mixing parameter `rho` and a single scale `spatial_scale`, such that
+
+``` r
+convolution = spatial_scale * (sqrt(rho * scale_factor^-1) * phi + sqrt(1 - rho) * theta)
+```
+
 The following function creates the convolution term for the BYM2 model
 and makes adjustments for disconnected graph structures and
-zero-neighbor observations.
+zero-neighbor observations. If you use this function, do not also use
+the `make_phi` function (see `BYM2.stan`).
 
 ``` stan
 /**
@@ -204,20 +288,25 @@ zero-neighbor observations.
  * @param phi_tilde local (spatially autocorrelated) component
  * @param theta_tilde global component
  * @param spatial_scale scale parameter for the convolution term
+* @param inv_sqrt_scale_factor The scaling factor for the ICAR variance (see scale_c R function, using R-INLA); 
+ *                              transformed from 1/scale^2 --> scale. Or, a vector of ones.
  * @param n number of spatial units
  * @param k number of connected groups
  * @param group_size number of observational units in each group
  * @param group_idx index of observations in order of their group membership
  * @param logit_rho proportion of convolution that is spatially autocorrelated, logit transformed
- * @param scale_factor The scaling factor for the BYM2 model. See scale_c R function, using R-INLA.
  *
  * @return BYM2 convolution vector
  */
-vector convolve_bym2(vector phi_tilde, vector theta_tilde,
+vector convolve_bym2(vector phi_tilde, 
+          vector theta_tilde,
           real spatial_scale,
-              int n, int k,
-              int[] group_size, int[] group_idx,
-              real rho, vector scale_factor
+          vector inv_sqrt_scale_factor,
+              int n, 
+              int k,
+              int[] group_size, 
+              int[] group_idx,
+              real rho, 
               ) {
   vector[n] convolution;
   int pos=1;
@@ -226,7 +315,7 @@ vector convolve_bym2(vector phi_tilde, vector theta_tilde,
         convolution[ segment(group_idx, pos, group_size[j]) ] = spatial_scale * theta_tilde[ segment(group_idx, pos, group_size[j]) ];
     } else {
     convolution[ segment(group_idx, pos, group_size[j]) ] = spatial_scale * (
-     sqrt(rho / scale_factor[j]) * phi_tilde[ segment(group_idx, pos, group_size[j]) ] +
+     sqrt(rho) * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ] +
      sqrt(1 - rho) * theta_tilde[ segment(group_idx, pos, group_size[j]) ]
       );
   }
@@ -236,7 +325,7 @@ vector convolve_bym2(vector phi_tilde, vector theta_tilde,
 }
 ```
 
-The previous three functions are stored in a file named
+All of the Stan functions specified above are stored in the file named
 “icar-functions.stan”.
 
 ### Putting it all together
@@ -249,17 +338,26 @@ The ICAR model requires the following input as data:
 -   `group_size` an integer array with the number of observations per
     group
 -   `n_edges` total number of edges (sum of all `edge_size`)
--   `node1`, `node2` same as in Morris’ code, these contain the indices
-    for each pair of connected nodes
+-   `node1`, `node2` these contain the indices for each pair of
+    connected nodes
 -   `group_idx` integer array (size `n`), see below. Allows us to
-    extract observations by their group membership.
+    extract observations by their group membership
+-   `inv_sqrt_scale_factor` a k-length vector of scale factors, one per
+    connected group. Or, a k-length vector of ones.
+-   `m` number of connected graph components requiring their own
+    intercept
+    -   for a single fully connected graph, this is zero; add one to `m`
+        for each additional connected component with `group_size > 1`.
+-   `A` an `n` by `m` matrix of dummy variables indicating to which
+    connected component an observation belongs (for any extra
+    intercepts).
 
-The demonstration shows how to use some R code to easily get all these
-items. The BYM2 model also requires:
+The demonstration shows how to use some R code to very easily obtain all
+these items at once. The Stan code appears more complicated than some
+applications will require, but it is designed to function under a
+variety of common circumstances.
 
--   `scale_factor` vector of scale factors, one per connected group.
-
-The Stan code below includes the follow terms, just to provide a
+The Stan code below also includes the following terms, just to provide a
 complete example:
 
 -   `prior_only` Binary indicator, skip the likelihood and just compute
@@ -279,13 +377,16 @@ data {
   int<lower=1> k; // no. of groups
   int group_size[k]; // observational units per group
   int group_idx[n]; // index of observations, ordered by group
+  int<lower=0> m; // no of components requiring additional intercepts
+  matrix[n, m] A; // dummy variables for any extra graph component intercepts
   int<lower=1> n_edges; 
   int<lower=1, upper=n> node1[n_edges];
   int<lower=1, upper=n> node2[n_edges];
   int<lower=1, upper=k> comp_id[n]; 
+  vector[k] inv_sqrt_scale_factor; // can be a vector of ones, as a placeholder
   int<lower=0, upper=1> prior_only;
   int y[n];
-  vector[n] offset;
+  vector[n] offset; // e.g., log of population at risk
 }
 
 transformed data {
@@ -294,6 +395,7 @@ transformed data {
 
 parameters {
   real alpha;
+  vector[m] alpha_phi;
   vector[n] phi_tilde;
   real<lower=0> spatial_scale;
   vector[n] theta_tilde;
@@ -301,19 +403,23 @@ parameters {
 }
 
 transformed parameters {
-  vector[n] convolution;
-  vector[n] phi = phi_tilde * spatial_scale;
+  vector[n] phi = make_phi(phi_tilde, spatial_scale, inv_sqrt_scale_factor, n, k, group_size, group_idx);
   vector[n] theta = theta_tilde * theta_scale;
-  convolution = convolve_bym(phi, theta, n, k, group_size, group_idx);
+  vector[n] convolution = convolve_bym(phi, theta, n, k, group_size, group_idx);
+  vector[n] eta = offset + alpha + convolution;
+  if (m) eta += A * alpha_phi;
 }
 
 model {
-   phi_tilde ~ icar_normal(node1, node2, k, group_size, group_idx, has_theta);
+   // keep the following lines as they are:
+   phi_tilde ~ icar_normal(spatial_scale, node1, node2, k, group_size, group_idx, has_theta);
    theta_tilde ~ std_normal();
-   spatial_scale ~ std_normal();
+   // the rest of the priors may need to be adjusted for your own model.
+   spatial_scale ~ std_normal(); 
    theta_scale ~ std_normal();
-   alpha ~ std_normal();
-   if (!prior_only) y ~ poisson_log(offset + alpha + convolution);
+   alpha ~ normal(0, 10); // this is the prior for the mean log rate.
+   if (m) alpha_phi ~ normal(0, 2);
+   if (!prior_only) y ~ poisson_log(eta);
 }
 ```
 
@@ -327,11 +433,24 @@ This section demonstrates how to fit these models using all US states
 **rstan**, and **ggplot2** packages.
 
 ``` r
-library(rstan)
+pkgs <- c("rstan", "sf", "spdep", "ggplot2")
+lapply(pkgs, require, character.only = TRUE)
+```
+
+    ## [[1]]
+    ## [1] TRUE
+    ## 
+    ## [[2]]
+    ## [1] TRUE
+    ## 
+    ## [[3]]
+    ## [1] TRUE
+    ## 
+    ## [[4]]
+    ## [1] TRUE
+
+``` r
 rstan_options(auto_write = TRUE)
-library(sf)
-library(spdep)
-library(ggplot2)
 source("icar-functions.R")
 ```
 
@@ -340,19 +459,8 @@ Download the shapefile from the Census Bureau and load it as an sf
 
 ``` r
 ## get a shapefil
-url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
-get_shp(url, "states")
-```
-
-    ## [1] "states/cb_2019_us_state_20m.cpg"           
-    ## [2] "states/cb_2019_us_state_20m.dbf"           
-    ## [3] "states/cb_2019_us_state_20m.prj"           
-    ## [4] "states/cb_2019_us_state_20m.shp"           
-    ## [5] "states/cb_2019_us_state_20m.shp.ea.iso.xml"
-    ## [6] "states/cb_2019_us_state_20m.shp.iso.xml"   
-    ## [7] "states/cb_2019_us_state_20m.shx"
-
-``` r
+#url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
+#get_shp(url, "states")
 states <- st_read("states")
 ```
 
@@ -369,7 +477,7 @@ ggplot(states) +
   theme_void()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-10-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-15-1.png" style="display: block; margin: auto;" />
 
 All of the required data for the ICAR model can be obtained by passing a
 connectivity matrix `C` to the `prep_icar_data` function. The
@@ -405,13 +513,112 @@ and pass our list of data to Stan to sample from the joint prior
 distribution of the parameters:
 
 ``` r
-fit = sampling(BYM,
-               data = dl,
-               chains = 5,
-               cores = 5,
-               control = list(max_treedepth = 13)
-               )
+ fit = sampling(BYM,
+                data = dl,
+                control = list(max_treedepth = 13)
+                )
 ```
+
+    ## 
+    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 1).
+    ## Chain 1: 
+    ## Chain 1: Gradient evaluation took 2.5e-05 seconds
+    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 0.25 seconds.
+    ## Chain 1: Adjust your expectations accordingly!
+    ## Chain 1: 
+    ## Chain 1: 
+    ## Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 1: 
+    ## Chain 1:  Elapsed Time: 9.21218 seconds (Warm-up)
+    ## Chain 1:                6.58285 seconds (Sampling)
+    ## Chain 1:                15.795 seconds (Total)
+    ## Chain 1: 
+    ## 
+    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 2).
+    ## Chain 2: 
+    ## Chain 2: Gradient evaluation took 2e-05 seconds
+    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.2 seconds.
+    ## Chain 2: Adjust your expectations accordingly!
+    ## Chain 2: 
+    ## Chain 2: 
+    ## Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 2: 
+    ## Chain 2:  Elapsed Time: 9.43214 seconds (Warm-up)
+    ## Chain 2:                7.46596 seconds (Sampling)
+    ## Chain 2:                16.8981 seconds (Total)
+    ## Chain 2: 
+    ## 
+    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 3).
+    ## Chain 3: 
+    ## Chain 3: Gradient evaluation took 2.3e-05 seconds
+    ## Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.23 seconds.
+    ## Chain 3: Adjust your expectations accordingly!
+    ## Chain 3: 
+    ## Chain 3: 
+    ## Chain 3: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 3: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 3: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 3: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 3: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 3: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 3: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 3: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 3: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 3: 
+    ## Chain 3:  Elapsed Time: 11.403 seconds (Warm-up)
+    ## Chain 3:                7.41903 seconds (Sampling)
+    ## Chain 3:                18.822 seconds (Total)
+    ## Chain 3: 
+    ## 
+    ## SAMPLING FOR MODEL 'BYM' NOW (CHAIN 4).
+    ## Chain 4: 
+    ## Chain 4: Gradient evaluation took 3.7e-05 seconds
+    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.37 seconds.
+    ## Chain 4: Adjust your expectations accordingly!
+    ## Chain 4: 
+    ## Chain 4: 
+    ## Chain 4: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 4: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 4: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 4: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 4: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 4: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 4: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 4: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 4: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 4: 
+    ## Chain 4:  Elapsed Time: 10.8583 seconds (Warm-up)
+    ## Chain 4:                7.63972 seconds (Sampling)
+    ## Chain 4:                18.4981 seconds (Total)
+    ## Chain 4:
 
 We can see that three of the `phi_i` are zero:
 
@@ -419,13 +626,12 @@ We can see that three of the `phi_i` are zero:
 plot(fit, pars = "phi")
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-15-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
 
 Those tightly centered on zero are the states with zero neighbors. They
 have no spatial autocorrelation component by definition, so `phi` gets
 zeroed out and the convolution term for thos observations is equal to
-`theta`. (If we were fitting an ICAR model without `theta`, they would
-be given standard normal priors instead of being zeroed out.)
+`theta`.
 
 We also can see that the variance of the prior distribution is uneven
 across states. The ICAR model is driven by the pairwise difference
@@ -450,7 +656,7 @@ phi.var <- apply(phi.samples, 2, var)
 plot(D_diag, phi.var)
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-16-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-21-1.png" style="display: block; margin: auto;" />
 
 And the marginal variances of the ICAR prior exhibit spatial
 autocorrelation, with a predictable pattern of higher variance on the
@@ -470,7 +676,7 @@ ggplot(cont) +
   )
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-17-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-22-1.png" style="display: block; margin: auto;" />
 
 We can view a sample of the variety of spatial autocorrelation patterns
 that are present in the prior model for `phi`:
@@ -484,7 +690,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-18-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-23-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -492,15 +698,15 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-19-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-24-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
-  geom_sf(aes(fill = phi[3000,])) +
+  geom_sf(aes(fill = phi[700,])) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-25-1.png" style="display: block; margin: auto;" />
 
 The following plot is a histogram of the degree of spatial
 autocorrelation in each posterior draw of `phi` as measured by the Moran
@@ -512,10 +718,39 @@ phi.sa  <- apply(phi, 1, mc, w = C)
 hist(phi.sa)
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-21-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-26-1.png" style="display: block; margin: auto;" />
 
 Only positive spatial autocorrelation patterns can be modeled with the
 ICAR prior.
+
+### Scaling the ICAR prior
+
+To follow Reibler et al.’s adjustment to the scale of the model, you can
+use the INLA R package and the following R code:
+
+``` r
+icar.data <- prep_icar_data(C)
+
+## calculate the scale factor for each of k connected group of nodes, using scale_c function
+k <- icar.data$k
+scale_factor <- vector(mode = "numeric", length = k)
+for (j in 1:k) {
+  g.idx <- which(icar.data$comp_id == j) 
+  if (length(g.idx) == 1) {
+    scale_factor[j] <- 1
+    next
+  }    
+  Cg <- C[g.idx, g.idx] 
+  scale_factor[j] <- scale_c(Cg) 
+}
+
+## update the data list for Stan
+icar.data$inv_sqrt_scale_factor <- 1 / sqrt( scale_factor )
+```
+
+This data then gets passed into the data list for `BYM.stan` or
+`BYM2.stan` without any other adjustments needed. You can also find
+example code for this in the `demo-BYM2.R` script.
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
@@ -529,6 +764,10 @@ Besag, Julian, Jeremy York, and Annie Mollié. 1991. “Bayesian Image
 Restoration, with Two Applications in Spatial Statistics.” *Annals of
 the Institute of Statistical Mathematics* 43 (1): 1–20.
 
+Freni-Sterrantino, Anna, Massimo Ventrucci, and Håvard Rue. 2018. “A
+Note on Intrinsic Conditional Autoregressive Models for Disconnected
+Graphs.” *Spatial and Spatio-Temporal Epidemiology* 26: 25–34.
+
 Haining, Robert, and Guangquan Li. 2020. *Modelling Spatial and
 Spatio-Temporal Data: A Bayesian Approach*. CRC Press.
 
@@ -540,3 +779,6 @@ Spatial Models: Implementing the Besag York Mollié Model in Stan.”
 Riebler, Andrea, Sigrunn H Sørbye, Daniel Simpson, and Håvard Rue. 2016.
 “An Intuitive Bayesian Spatial Model for Disease Mapping That Accounts
 for Scaling.” *Statistical Methods in Medical Research* 25 (4): 1145–65.
+
+Rue, Havard, and Leonhard Held. 2005. *Gaussian Markov Random Fields:
+Theory and Applications*. CRC press.
