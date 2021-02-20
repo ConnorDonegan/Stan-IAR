@@ -26,7 +26,7 @@ knitr::opts_chunk$set(
   fig.align = "center")
 ```
 
-### ICAR, BYM, and BYM2 models in Stan
+# Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
 
 This repository contains R and Stan code to fit spatial models using intrinsic conditional autoregressive (ICAR) priors, including the BYM model [@besag_1991] and Riebler et al.'s [-@riebler_2016] adjustmented ("BYM2") specification. The code here follows all of the recommendations from @freni_2018 for disconnected graph structures.
 
@@ -41,7 +41,7 @@ Contents includes:
 - `demo-BYM2.R` Example R code for fitting the BYM2 model.
 - `BYM2-b.stan` Alternative code for the ICAR/BYM2 model in Stan (courtesy of Mizi Morris--this is currently under revision, please use `BYM2.stan` for now). 
 
-The foundation for the efficient Stan code for ICAR models was first presented in Morris' Stan [case study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R) and Morris et al. (2020). I've adapted the model to handle a variety of common scenarios, particularly the presence of observations with zero neighbors or data from multiple regions that are disconnected from each other. These situations impact the calculation of the log probability as well as how the terms of the BYM model can be combined. I drew on previous work by [Adam Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/) (particularly, some of his approach to indexing), and the repository also includes some additional contributions from Mitiz Morris (where indicated). I am solely responsible for any errors or oversights here.
+The foundation for the efficient Stan code for ICAR models was first presented in Morris' Stan [case study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R) and Morris et al. (2020). I've adapted the model to handle a variety of common scenarios, particularly the presence of observations with zero neighbors or data from multiple regions that are disconnected from each other. These situations impact how the sum-to-zero constraint is imposed on the model as well as how the terms of the BYM model can be combined. I drew on previous work by [Adam Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/), and the repository includes additional contributions from M. Morris (where indicated, carrying over some material from [Stan-Dev](https://github.com/stan-dev/example-models/tree/master/knitr/car-iar-poisson/update_2021_02)). I am solely responsible for any errors or oversights here.
 
 For a general introduction to ICAR models (including spatio-temporal specifications) see @haining_2020. For an introduction to their implementation in Stan see Morris' [Stan case study](https://mc-stan.org/users/documentation/case-studies/icar_stan.html). For a deeper read see @rue_2005.
 
@@ -150,11 +150,15 @@ vector make_phi(vector phi_tilde, real phi_scale,
 }
 ```
 
-One way this model might be extended is by including a separate scale parameters for each connected component of the graph. This would require declaring `vector phi_scale` (a k-length vector) and then writing 
+One way this model can be extended is by assigning a separate scale parameters for each connected component of the graph. Once you assign separate intercepts and scale parameters for each disconnected region, you have independent prior models for each region. Imposing the constraint that disconnected regions have the same scale parameter may seem unreasonable for some applications, and also may slow down sampling. For example, why would the spatial autocorrelation parameters for the counties of Hawaii have the same scale as those for the continental U.S.?
+
+Implementing this extension requires declaring `vector<lower=0>[1+m] phi_scale` in the parameters block and then adjusting the `make_phi` function as follows:
 
 ```{r eval = FALSE}
 phi[ segment(group_idx, pos, group_size[j]) ] = phi_scale[j] * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ];`.
 ```
+
+The `icar-functions.stan` file contains a function called `make_phi2` with that adjustment made. 
 
 ### BYM convolution term
 

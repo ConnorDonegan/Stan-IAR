@@ -1,18 +1,19 @@
 
 
--   [ICAR, BYM, and BYM2 models in
-    Stan](#icar-bym-and-bym2-models-in-stan)
--   [The ICAR prior](#the-icar-prior)
--   [BYM convolution term](#bym-convolution-term)
--   [BYM2 convolution term](#bym2-convolution-term)
--   [Putting it all together](#putting-it-all-together)
--   [Demonstration](#demonstration)
--   [Scaling the ICAR prior](#scaling-the-icar-prior)
+-   [Flexible Functions for ICAR, BYM, and BYM2 Models in
+    Stan](#flexible-functions-for-icar-bym-and-bym2-models-in-stan)
+    -   [The ICAR prior](#the-icar-prior)
+    -   [BYM convolution term](#bym-convolution-term)
+    -   [BYM2 convolution term](#bym2-convolution-term)
+    -   [Putting it all together](#putting-it-all-together)
+    -   [Demonstration](#demonstration)
+    -   [Scaling the ICAR prior](#scaling-the-icar-prior)
 -   [References](#references)
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-### ICAR, BYM, and BYM2 models in Stan
+Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
+=========================================================
 
 This repository contains R and Stan code to fit spatial models using
 intrinsic conditional autoregressive (ICAR) priors, including the BYM
@@ -49,13 +50,14 @@ study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-pois
 and Morris et al. (2020). I’ve adapted the model to handle a variety of
 common scenarios, particularly the presence of observations with zero
 neighbors or data from multiple regions that are disconnected from each
-other. These situations impact the calculation of the log probability as
-well as how the terms of the BYM model can be combined. I drew on
-previous work by [Adam
-Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/)
-(particularly, some of his approach to indexing), and the repository
-also includes some additional contributions from Mitiz Morris (where
-indicated). I am solely responsible for any errors or oversights here.
+other. These situations impact how the sum-to-zero constraint is imposed
+on the model as well as how the terms of the BYM model can be combined.
+I drew on previous work by [Adam
+Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/), and
+the repository includes additional contributions from M. Morris (where
+indicated, carrying over some material from
+[Stan-Dev](https://github.com/stan-dev/example-models/tree/master/knitr/car-iar-poisson/update_2021_02)).
+I am solely responsible for any errors or oversights here.
 
 For a general introduction to ICAR models (including spatio-temporal
 specifications) see Haining and Li (2020). For an introduction to their
@@ -203,13 +205,26 @@ vector make_phi(vector phi_tilde, real phi_scale,
 }
 ```
 
-One way this model might be extended is by including a separate scale
-parameters for each connected component of the graph. This would require
-declaring `vector phi_scale` (a k-length vector) and then writing
+One way this model can be extended is by assigning a separate scale
+parameters for each connected component of the graph. Once you assign
+separate intercepts and scale parameters for each disconnected region,
+you have independent prior models for each region. Imposing the
+constraint that disconnected regions have the same scale parameter may
+seem unreasonable for some applications, and also may slow down
+sampling. For example, why would the spatial autocorrelation parameters
+for the counties of Hawaii have the same scale as those for the
+continental U.S.?
+
+Implementing this extension requires declaring
+`vector<lower=0>[1+m] phi_scale` in the parameters block and then
+adjusting the `make_phi` function as follows:
 
 ``` r
 phi[ segment(group_idx, pos, group_size[j]) ] = phi_scale[j] * inv_sqrt_scale_factor[j] * phi_tilde[ segment(group_idx, pos, group_size[j]) ];`.
 ```
+
+The `icar-functions.stan` file contains a function called `make_phi2`
+with that adjustment made.
 
 ### BYM convolution term
 
