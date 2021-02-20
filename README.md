@@ -12,17 +12,17 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-## Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
+Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
+=========================================================
 
 This repository contains R and Stan code to fit spatial models using
 intrinsic conditional autoregressive (ICAR) priors, including the BYM
 model (Besag, York, and Mollié 1991) and Riebler et al.’s (2016)
 adjustmented (“BYM2”) specification. The code here follows all of the
 recommendations from Freni-Sterrantino, Ventrucci, and Rue (2018) for
-disconnected graph structures.
+disconnected graph structures, building on Morris et al. (2019).
 
-While the Stan code for these models may appear complex (or perhaps
-convoluted), the implementation is actually very simple given the R and
+The implementation here is designed to be fairly simple given the R and
 Stan functions provided here. The code will work if you have a single
 connected graph structure, and if there are islands and/or multiple
 connected components it will automatically make the appropriate
@@ -46,7 +46,7 @@ Contents includes:
 The foundation for the efficient Stan code for ICAR models was first
 presented in Morris’ Stan [case
 study](https://github.com/stan-dev/example-models/blob/master/knitr/car-iar-poisson/nb_data_funs.R)
-and Morris et al. (2020). I’ve adapted the model to handle a variety of
+and Morris et al. (2019). I’ve adapted the model to handle a variety of
 common scenarios, particularly the presence of observations with zero
 neighbors or data from multiple regions that are disconnected from each
 other. These situations impact how the sum-to-zero constraint is imposed
