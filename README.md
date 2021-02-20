@@ -12,8 +12,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
-=========================================================
+## Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
 
 This repository contains R and Stan code to fit spatial models using
 intrinsic conditional autoregressive (ICAR) priors, including the BYM
