@@ -31,7 +31,9 @@ parameters {
 
 transformed parameters {
   vector[n] convolution;
+  vector[n] eta;
   convolution = convolve_bym2(phi_tilde, theta_tilde, spatial_scale, n, k, group_size, group_idx, rho, inv_sqrt_scale_factor);
+  eta = offset + alpha + convolution;
 }
 
 model {
@@ -40,6 +42,11 @@ model {
    spatial_scale ~ std_normal();
    rho ~ beta(1,1);
    alpha ~ std_normal();
-   if (!prior_only) y ~ poisson_log(offset + alpha + convolution);
+   if (!prior_only) y ~ poisson_log(eta);
+}
+
+generated quantities {
+  vector[n] resid;
+  for (i in 1:n) resid[i] = exp(eta[i]) - y[i];
 }
 

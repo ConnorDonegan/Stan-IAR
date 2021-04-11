@@ -1,6 +1,7 @@
 *~
 *.rds
 /states
+/test
 test-intercepts.R
 time-series.R
 test-intercepts.R

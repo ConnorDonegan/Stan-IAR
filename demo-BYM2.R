@@ -3,13 +3,24 @@ lapply(pkgs, require, character.only = TRUE)
 rstan_options(javascript=FALSE)
 source("icar-functions.R")
 
+## the commented-out code will set you up to use the same data as in the README document
 ## get a shapefile
-url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
-get_shp(url, "states")
-states <- st_read("states")
+## url <- "https://www2.census.gov/geo/tiger/GENZ2019/shp/cb_2019_us_state_20m.zip"
+## get_shp(url, "states")
+## states <- st_read("states")
 
 ## prep data for ICAR function in Stan
-C <- spdep::nb2mat(spdep::poly2nb(states, queen = TRUE), style = "B", zero.policy = TRUE)
+##C <- spdep::nb2mat(spdep::poly2nb(states, queen = TRUE), style = "B", zero.policy = TRUE)
+##icar.data <- prep_icar_data(C)
+
+# load data: from Spatial Epi package, a data.frame and a shapefile
+library(SpatialEpi)
+data(scotland)
+df <- scotland$data
+sp <- scotland$spatial.polygon
+
+## prep data for ICAR function in Stan
+C <- spdep::nb2mat(spdep::poly2nb(sp, queen = TRUE), style = "B", zero.policy = TRUE)
 icar.data <- prep_icar_data(C)
 
 ## notice that the scale_factor is just ones. 
@@ -34,13 +45,14 @@ icar.data$inv_sqrt_scale_factor <- 1 / sqrt( scale_factor )
 ## see the new values
 print(icar.data$inv_sqrt_scale_factor)
 
-## and add in some (fake) outcome data with offset on log scale
-n <- nrow(C)
-dl <- list(n = n, 
-           y = rep(1, n), ## just a placeholder
-           offset = rep(log(100), n), ## just a placeholder
-           prior_only = 1 ## telling Stan to ignore the outcome data (y, offset)
-           )
+## add outcome data to the list
+dl <- list(    
+    n = nrow(df),
+    y = df$cases,
+    offset = log(df$expected),
+    prior_only = 0
+)
+
 dl <- c(dl, icar.data)
 
 ## compile the model
@@ -55,7 +67,12 @@ plot(fit, pars = "convolution")
 plot(fit, pars = "spatial_scale", plotfun = "hist")
 plot(fit, pars = "rho", plotfun = "hist")
 
-## prior degree of spatial autocorrelation (SA) in the convolution term
+## degree of spatial autocorrelation (SA) in the convolution term
 convolution <- as.matrix(fit, pars = "convolution")
 sa <- apply(convolution, 1, mc, w=C)
 hist(sa)
+
+## simple map of the posterior mean of the convolution term 
+spx <- st_as_sf(sp)
+spx$convolution <- apply(convolution, 2, mean)
+plot(spx[,"convolution"])
