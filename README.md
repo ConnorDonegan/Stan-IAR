@@ -320,7 +320,7 @@ vector convolve_bym2(vector phi_tilde,
               int k,
               int[] group_size, 
               int[] group_idx,
-              real rho, 
+              real rho
               ) {
   vector[n] convolution;
   int pos=1;
