@@ -8,19 +8,21 @@
     -   [Putting it all together](#putting-it-all-together)
     -   [Demonstration](#demonstration)
     -   [Scaling the ICAR prior](#scaling-the-icar-prior)
--   [References](#references)
+    -   [Citation](#citation)
+    -   [References](#references)
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
-=========================================================
+# Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
 
 This repository contains R and Stan code to fit spatial models using
 intrinsic conditional autoregressive (ICAR) priors, including the BYM
 model (Besag, York, and Mollié 1991) and Riebler et al.’s (2016)
 adjustmented (“BYM2”) specification. The code here follows all of the
 recommendations from Freni-Sterrantino, Ventrucci, and Rue (2018) for
-disconnected graph structures, building on Morris et al. (2019).
+disconnected graph structures, building on Morris et al. (2019). For
+proper CAR models in Stan, see
+[here](https://github.com/ConnorDonegan/survey-HBM).
 
 The implementation here is designed to be fairly simple given the R and
 Stan functions provided here. The code will work if you have a single
@@ -336,7 +338,7 @@ vector convolve_bym2(vector phi_tilde, vector theta_tilde,
 ```
 
 All of the Stan functions specified above are stored in the file named
-“icar-functions.stan”.
+“icar-functions.stan.”
 
 ### Putting it all together
 
@@ -485,12 +487,13 @@ get_shp(url, "states")
 states <- st_read("states")
 ```
 
-    ## Reading layer `cb_2019_us_state_20m' from data source `/home/connor/repo/Stan-IAR/states' using driver `ESRI Shapefile'
+    ## Reading layer `cb_2019_us_state_20m' from data source 
+    ##   `/home/connor/repo/Stan-IAR/states' using driver `ESRI Shapefile'
     ## Simple feature collection with 52 features and 9 fields
-    ## geometry type:  MULTIPOLYGON
-    ## dimension:      XY
-    ## bbox:           xmin: -179.1743 ymin: 17.91377 xmax: 179.7739 ymax: 71.35256
-    ## geographic CRS: NAD83
+    ## Geometry type: MULTIPOLYGON
+    ## Dimension:     XY
+    ## Bounding box:  xmin: -179.1743 ymin: 17.91377 xmax: 179.7739 ymax: 71.35256
+    ## Geodetic CRS:  NAD83
 
 ``` r
 ggplot(states) +
@@ -535,11 +538,20 @@ distribution of the parameters:
 
 ``` r
  fit = sampling(BYM,
-                refresh = 0,
                 data = dl,
+                refresh = 1e3, 
+                cores = 4,
                 control = list(max_treedepth = 13)
                 )
 ```
+
+Check convergence (*R̂* ≈ 1):
+
+``` r
+rstan::stan_rhat(fit)
+```
+
+<img src="README_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
 
 We can see that three of the `phi_i` are zero:
 
@@ -547,7 +559,7 @@ We can see that three of the `phi_i` are zero:
 plot(fit, pars = "phi")
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-20-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-21-1.png" style="display: block; margin: auto;" />
 
 Those tightly centered on zero are the states with zero neighbors. They
 have no spatial autocorrelation component by definition, so `phi` gets
@@ -577,7 +589,7 @@ phi.var <- apply(phi.samples, 2, var)
 plot(D_diag, phi.var)
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-21-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-22-1.png" style="display: block; margin: auto;" />
 
 And the marginal variances of the ICAR prior exhibit spatial
 autocorrelation, with a predictable pattern of higher variance on the
@@ -597,7 +609,7 @@ ggplot(cont) +
   )
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-22-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-23-1.png" style="display: block; margin: auto;" />
 
 We can view a sample of the variety of spatial autocorrelation patterns
 that are present in the prior model for `phi`:
@@ -611,7 +623,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-23-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-24-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -619,7 +631,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-24-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-25-1.png" style="display: block; margin: auto;" />
 
 ``` r
 ggplot(cont) +
@@ -627,7 +639,7 @@ ggplot(cont) +
   scale_fill_gradient2()
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-25-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-26-1.png" style="display: block; margin: auto;" />
 
 The following plot is a histogram of the degree of spatial
 autocorrelation in each posterior draw of `phi` as measured by the Moran
@@ -639,7 +651,7 @@ phi.sa  <- apply(phi, 1, mc, w = C)
 hist(phi.sa)
 ```
 
-<img src="README_files/figure-markdown_github/unnamed-chunk-26-1.png" style="display: block; margin: auto;" />
+<img src="README_files/figure-markdown_github/unnamed-chunk-27-1.png" style="display: block; margin: auto;" />
 
 Only positive spatial autocorrelation patterns can be modeled with the
 ICAR prior.
@@ -673,33 +685,66 @@ This data then gets passed into the data list for `BYM.stan` or
 `BYM2.stan` without any other adjustments needed. You can also find
 example code for this in the `demo-BYM2.R` script.
 
+### Citation
+
+Donegan, Connor. Flexible Functions for ICAR, BYM, and BYM2 Models in
+Stan. Code Repository. 2021. Available online:
+<https://github.com/ConnorDonegan/Stan-IAR> (access date).
+
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/88x31.png" /></a><br />This
 work is licensed under a
 <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative
 Commons Attribution-NonCommercial 4.0 International License</a>.
 
-References
-==========
+### References
+
+<div id="refs" class="references csl-bib-body hanging-indent">
+
+<div id="ref-besag_1991" class="csl-entry">
 
 Besag, Julian, Jeremy York, and Annie Mollié. 1991. “Bayesian Image
 Restoration, with Two Applications in Spatial Statistics.” *Annals of
 the Institute of Statistical Mathematics* 43 (1): 1–20.
 
+</div>
+
+<div id="ref-freni_2018" class="csl-entry">
+
 Freni-Sterrantino, Anna, Massimo Ventrucci, and Håvard Rue. 2018. “A
 Note on Intrinsic Conditional Autoregressive Models for Disconnected
 Graphs.” *Spatial and Spatio-Temporal Epidemiology* 26: 25–34.
 
+</div>
+
+<div id="ref-haining_2020" class="csl-entry">
+
 Haining, Robert, and Guangquan Li. 2020. *Modelling Spatial and
 Spatio-Temporal Data: A Bayesian Approach*. CRC Press.
+
+</div>
+
+<div id="ref-morris_2019" class="csl-entry">
 
 Morris, Mitzi, Katherine Wheeler-Martin, Dan Simpson, Stephen J Mooney,
 Andrew Gelman, and Charles DiMaggio. 2019. “Bayesian Hierarchical
 Spatial Models: Implementing the Besag York Mollié Model in Stan.”
 *Spatial and Spatio-Temporal Epidemiology* 31: 100301.
 
+</div>
+
+<div id="ref-riebler_2016" class="csl-entry">
+
 Riebler, Andrea, Sigrunn H Sørbye, Daniel Simpson, and Håvard Rue. 2016.
 “An Intuitive Bayesian Spatial Model for Disease Mapping That Accounts
 for Scaling.” *Statistical Methods in Medical Research* 25 (4): 1145–65.
 
+</div>
+
+<div id="ref-rue_2005" class="csl-entry">
+
 Rue, Havard, and Leonhard Held. 2005. *Gaussian Markov Random Fields:
 Theory and Applications*. CRC press.
+
+</div>
+
+</div>

@@ -1,5 +1,6 @@
 *~
 *.rds
+README.html
 /states
 /test
 test-intercepts.R
