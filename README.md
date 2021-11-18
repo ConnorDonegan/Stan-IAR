@@ -53,11 +53,10 @@ neighbors or data from multiple regions that are disconnected from each
 other. These situations impact how the sum-to-zero constraint is imposed
 on the model as well as how the terms of the BYM model can be combined.
 I drew on previous work by [Adam
-Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/), and
+Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/) (including his use of the segment function), and
 the repository includes additional contributions from M. Morris (where
 indicated, carrying over some material from
 [Stan-Dev](https://github.com/stan-dev/example-models/tree/master/knitr/car-iar-poisson/update_2021_02)).
-I am solely responsible for any errors or oversights here.
 
 For a general introduction to ICAR models (including spatio-temporal
 specifications) see Haining and Li (2020). For an introduction to their
