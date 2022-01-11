@@ -1,16 +1,3 @@
-
-
--   [Flexible Functions for ICAR, BYM, and BYM2 Models in
-    Stan](#flexible-functions-for-icar-bym-and-bym2-models-in-stan)
-    -   [The ICAR prior](#the-icar-prior)
-    -   [BYM convolution term](#bym-convolution-term)
-    -   [BYM2 convolution term](#bym2-convolution-term)
-    -   [Putting it all together](#putting-it-all-together)
-    -   [Demonstration](#demonstration)
-    -   [Scaling the ICAR prior](#scaling-the-icar-prior)
-    -   [Citation](#citation)
-    -   [References](#references)
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # Flexible Functions for ICAR, BYM, and BYM2 Models in Stan
@@ -65,6 +52,15 @@ specifications) see Haining and Li (2020). For an introduction to their
 implementation in Stan see Morris’ [Stan case
 study](https://mc-stan.org/users/documentation/case-studies/icar_stan.html).
 For a deeper read see Rue and Held (2005).
+
+For fast and stable proper CAR models in Stan, which naturally avoid
+most of the complications dealt with here, see Donegan (2021) ([with
+code](https://doi.org/10.31219/osf.io/3ey65)) or this [git
+repo](https://github.com/ConnorDonegan/survey-HBM) from a related
+project. These and other spatial Stan models are implemented in the
+[geostan](https://connordonegan.github.io/geostan/) R package; the
+package also contains convenience functions for fitting custom spatial
+models in Stan (see the `prep_icar_data` and `prep_car_data` functions).
 
 ### The ICAR prior
 
@@ -236,11 +232,12 @@ Again, in practice we assign `theta_tilde` a standard normal prior and
 then multiply it by its scale `theta_scale`. Then the convolution term
 is
 
-``` r
+````` r
 convolution = phi + theta = phi_tilde * spatial_scale + theta_tilde * theta_scale
-```
+```` 
 
 or optionally with the scaling factor:
+`````
 
 ``` r
 convolution = phi_tilde * inv_sqrt_scale_factor * spatial_scale + theta_tilde * theta_scale
@@ -705,6 +702,14 @@ Commons Attribution-NonCommercial 4.0 International License</a>.
 Besag, Julian, Jeremy York, and Annie Mollié. 1991. “Bayesian Image
 Restoration, with Two Applications in Spatial Statistics.” *Annals of
 the Institute of Statistical Mathematics* 43 (1): 1–20.
+
+</div>
+
+<div id="ref-donegan_2021" class="csl-entry">
+
+Donegan, Connor. 2021. “Spatial Conditional Autoregressive Models in
+Stan.” *OSF Preprints*.
+https://doi.org/<https://doi.org/10.31219/osf.io/3ey65>.
 
 </div>
 

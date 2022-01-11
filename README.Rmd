@@ -45,6 +45,13 @@ The foundation for the efficient Stan code for ICAR models was first presented i
 
 For a general introduction to ICAR models (including spatio-temporal specifications) see @haining_2020. For an introduction to their implementation in Stan see Morris' [Stan case study](https://mc-stan.org/users/documentation/case-studies/icar_stan.html). For a deeper read see @rue_2005.
 
+For fast and stable proper CAR models in Stan, which naturally avoid most of the complications
+dealt with here, see @donegan_2021 ([with code](https://doi.org/10.31219/osf.io/3ey65)) or this
+[git repo](https://github.com/ConnorDonegan/survey-HBM) from a related project. 
+These and other spatial Stan models are implemented in the [geostan](https://connordonegan.github.io/geostan/)
+R package; the package also contains convenience functions for fitting custom 
+spatial models in Stan (see the `prep_icar_data` and `prep_car_data` functions).
+
 ### The ICAR prior
 
 The ICAR prior specified with a binary connectivity matrix reduces to a function of the pairwise differences of neighboring values under the constraint that the parameter vector sums to zero. Morris et al. program the ICAR prior in Stan using the following function:
