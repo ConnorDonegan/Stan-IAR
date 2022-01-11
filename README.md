@@ -29,8 +29,7 @@ Contents includes:
 -   `BYM2.stan` Example code for the BYM2 model;
 -   `demo-BYM2.R` Example R code for fitting the BYM2 model.
 -   `BYM2-b.stan` Alternative code for the ICAR/BYM2 model in Stan
-    (courtesy of Mizi Morris–this is currently under revision, please
-    use `BYM2.stan` for now).
+    (courtesy of Mizi Morris).
 
 The foundation for the efficient Stan code for ICAR models was first
 presented in Morris’ Stan [case
@@ -41,11 +40,10 @@ neighbors or data from multiple regions that are disconnected from each
 other. These situations impact how the sum-to-zero constraint is imposed
 on the model as well as how the terms of the BYM model can be combined.
 I drew on previous work by [Adam
-Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/), and
+Howes](https://athowes.github.io/2020/11/10/fast-disconnected-car/) (including his use of the segment function), and
 the repository includes additional contributions from M. Morris (where
 indicated, carrying over some material from
 [Stan-Dev](https://github.com/stan-dev/example-models/tree/master/knitr/car-iar-poisson/update_2021_02)).
-I am solely responsible for any errors or oversights here.
 
 For a general introduction to ICAR models (including spatio-temporal
 specifications) see Haining and Li (2020). For an introduction to their
